@@ -1,7 +1,7 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use mysql::prelude::*;
 use mysql::*;
-use serde_json::Value;
+use serde::Deserialize;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -18,10 +18,14 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-struct List {
-    id: i32,
-    content: &'static str,
-    created: &'static str,
+// struct List {
+//     id: u32,
+//     content: String,
+//     created: String,
+// }
+#[derive(Deserialize)]
+struct InsertList {
+    content: String,
 }
 
 #[get("/")]
@@ -30,19 +34,21 @@ async fn index() -> impl Responder {
 }
 
 #[post("/add")]
-async fn add(req_body: web::Bytes) -> Result<HttpResponse, std::io::Error> {
-    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
-    let conn = Conn::new(url).unwrap();
-    let body = String::from_utf8(req_body.to_vec()).unwrap();
-    let json_body: Value = serde_json::from_str(&body)?;
-    let content = json_body["content"]
-        .as_str()
-        .ok_or_else(|| actix_web::error::ErrorBadRequest("Missing field 'content'"))
-        .unwrap();
-    conn.exec_drop(r"INSERT INTO list (content) VALUES (?)", &content)
-        .unwrap();
+async fn add(json_body: web::Json<InsertList>) -> impl Responder {
+    println!("{}", json_body.content);
 
-    Ok(HttpResponse::Ok().body("success"))
+    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
+    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
+
+    let query = format!(
+        "INSERT INTO list (content) VALUES ('{}')",
+        json_body.content
+    );
+
+    conn.query_drop(query)
+        .expect("Failed to insert task on database.");
+
+    HttpResponse::Ok().body("Task inserted successfully")
 }
 
 // #[get("/list")]
@@ -58,10 +64,10 @@ async fn add(req_body: web::Bytes) -> Result<HttpResponse, std::io::Error> {
 //     HttpResponse::Ok().body(list)
 // }
 
-fn get_conn() -> std::result::Result<Conn, Box<dyn std::error::Error>> {
-    let url = "mysql://root:root@localhost:8889/modern_todolist";
-    return Ok(Conn::new(url)?);
-}
+// fn get_conn() -> std::result::Result<Conn, Box<dyn std::error::Error>> {
+//     let url = "mysql://root:root@localhost:8889/modern_todolist";
+//     return Ok(Conn::new(url)?);
+// }
 
 async fn hey() -> impl Responder {
     HttpResponse::Ok().body("Hey!")
