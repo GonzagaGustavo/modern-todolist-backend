@@ -1,14 +1,22 @@
+use actix_cors::Cors;
+
 use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
 use mysql::prelude::*;
 use mysql::*;
 use serde::{Deserialize, Serialize};
 
-#[actix_web::main]
+#[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     let port: u16 = 8000;
 
     HttpServer::new(|| {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header(),
+            )
             .service(index)
             .service(list)
             .service(add)
