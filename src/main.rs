@@ -1,7 +1,7 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
 use mysql::prelude::*;
 use mysql::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -10,7 +10,9 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(index)
+            .service(list)
             .service(add)
+            .service(delete)
             .route("/hey", web::get().to(hey))
     })
     .bind(("127.0.0.1", port))?
@@ -18,11 +20,12 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-// struct List {
-//     id: u32,
-//     content: String,
-//     created: String,
-// }
+#[derive(Debug, Serialize)]
+struct List {
+    id: u32,
+    content: String,
+    created: String,
+}
 #[derive(Deserialize)]
 struct InsertList {
     content: String,
@@ -51,23 +54,35 @@ async fn add(json_body: web::Json<InsertList>) -> impl Responder {
     HttpResponse::Ok().body("Task inserted successfully")
 }
 
-// #[get("/list")]
-// async fn list() -> std::result::Result<impl Responder, Box<dyn std::error::Error>> {
-//     let conn = get_conn();
+#[get("/list")]
+async fn list() -> impl Responder {
+    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
+    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
 
-//     let list = conn.query_map("SELECT * FROM list", |(id, content, created)| List {
-//         id,
-//         content,
-//         created,
-//     })?;
+    let query = "SELECT * FROM list";
 
-//     HttpResponse::Ok().body(list)
-// }
+    let list: Vec<List> = conn
+        .query_map(query, |(id, content, created)| List {
+            content,
+            created,
+            id,
+        })
+        .expect("FAILED TO GET the tasks");
 
-// fn get_conn() -> std::result::Result<Conn, Box<dyn std::error::Error>> {
-//     let url = "mysql://root:root@localhost:8889/modern_todolist";
-//     return Ok(Conn::new(url)?);
-// }
+    HttpResponse::Ok().json(list)
+}
+
+#[delete("/list/{task_id}")]
+async fn delete(task_id: web::Path<u32>) -> impl Responder {
+    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
+    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
+
+    let query = format!("DELETE FROM list WHERE id = {}", task_id);
+
+    conn.query_drop(query).expect("Failed to delete user");
+
+    HttpResponse::Ok().body("Task deleted successfully")
+}
 
 async fn hey() -> impl Responder {
     HttpResponse::Ok().body("Hey!")
