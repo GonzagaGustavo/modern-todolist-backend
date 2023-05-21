@@ -1,13 +1,16 @@
 use actix_cors::Cors;
-
 use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
+use dotenv::dotenv;
 use mysql::prelude::*;
 use mysql::*;
 use serde::{Deserialize, Serialize};
+use std::env;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    let port: u16 = 8000;
+    dotenv().ok();
+    let port = env::var("PORT").expect("Error to get the PORT.");
+    let port: u16 = port.parse::<u16>().expect("Error to parse PORT to integer");
 
     HttpServer::new(|| {
         App::new()
@@ -48,8 +51,9 @@ async fn index() -> impl Responder {
 async fn add(json_body: web::Json<InsertList>) -> impl Responder {
     println!("{}", json_body.content);
 
-    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
-    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
+    let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
+    let opts = Opts::from_url(&url).expect("Failed to generate options.");
+    let mut conn = Conn::new(opts).expect("Failed to connect to mysql");
 
     let query = format!(
         "INSERT INTO list (content) VALUES ('{}')",
@@ -64,8 +68,9 @@ async fn add(json_body: web::Json<InsertList>) -> impl Responder {
 
 #[get("/list")]
 async fn list() -> impl Responder {
-    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
-    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
+    let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
+    let opts = OptsBuilder::from_opts(mysql::Opts::from_url(&url).unwrap());
+    let mut conn = Conn::new(opts.ssl_opts(mysql::SslOpts::default())).expect("Failed to connect to mysql");
 
     let query = "SELECT * FROM list";
 
@@ -82,8 +87,9 @@ async fn list() -> impl Responder {
 
 #[delete("/list/{task_id}")]
 async fn delete(task_id: web::Path<u32>) -> impl Responder {
-    let url: &str = "mysql://root:root@localhost:8889/modern_todolist";
-    let mut conn = Conn::new(url).expect("Failed to connect to mysql");
+    let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
+    let opts = Opts::from_url(&url).expect("Failed to generate options.");
+    let mut conn = Conn::new(opts).expect("Failed to connect to mysql");
 
     let query = format!("DELETE FROM list WHERE id = {}", task_id);
 
