@@ -26,7 +26,7 @@ async fn main() -> std::io::Result<()> {
             .service(delete)
             .route("/hey", web::get().to(hey))
     })
-    .bind(("0.0.0.0", port))?
+    .bind(("3.134.238.10", port))?
     .run()
     .await
 }
@@ -52,8 +52,9 @@ async fn add(json_body: web::Json<InsertList>) -> impl Responder {
     println!("{}", json_body.content);
 
     let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
-    let opts = Opts::from_url(&url).expect("Failed to generate options.");
-    let mut conn = Conn::new(opts).expect("Failed to connect to mysql");
+    let opts = OptsBuilder::from_opts(mysql::Opts::from_url(&url).unwrap());
+    let mut conn =
+        Conn::new(opts.ssl_opts(mysql::SslOpts::default())).expect("Failed to connect to mysql");
 
     let query = format!(
         "INSERT INTO list (content) VALUES ('{}')",
@@ -70,7 +71,8 @@ async fn add(json_body: web::Json<InsertList>) -> impl Responder {
 async fn list() -> impl Responder {
     let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
     let opts = OptsBuilder::from_opts(mysql::Opts::from_url(&url).unwrap());
-    let mut conn = Conn::new(opts.ssl_opts(mysql::SslOpts::default())).expect("Failed to connect to mysql");
+    let mut conn =
+        Conn::new(opts.ssl_opts(mysql::SslOpts::default())).expect("Failed to connect to mysql");
 
     let query = "SELECT * FROM list";
 
@@ -88,8 +90,9 @@ async fn list() -> impl Responder {
 #[delete("/list/{task_id}")]
 async fn delete(task_id: web::Path<u32>) -> impl Responder {
     let url: String = env::var("DATABASE_URL").expect("Failed to get DATABASE_URL");
-    let opts = Opts::from_url(&url).expect("Failed to generate options.");
-    let mut conn = Conn::new(opts).expect("Failed to connect to mysql");
+    let opts = OptsBuilder::from_opts(mysql::Opts::from_url(&url).unwrap());
+    let mut conn =
+        Conn::new(opts.ssl_opts(mysql::SslOpts::default())).expect("Failed to connect to mysql");
 
     let query = format!("DELETE FROM list WHERE id = {}", task_id);
 
