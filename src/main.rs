@@ -26,7 +26,7 @@ async fn main() -> std::io::Result<()> {
             .service(delete)
             .route("/hey", web::get().to(hey))
     })
-    .bind(("3.134.238.10", port))?
+    .bind(("0.0.0.0", port))?
     .run()
     .await
 }
